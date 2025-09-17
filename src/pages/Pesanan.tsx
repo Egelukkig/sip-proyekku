@@ -1,10 +1,255 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShoppingCart, FileText, Plus } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, Search, Edit, Trash2, ShoppingCart, FileText, Download, Eye } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+interface PesananItem {
+  id: number;
+  nama_item: string;
+  jumlah_rab: number;
+  jumlah_dipesan: number;
+  sisa_kebutuhan: number;
+  harga_satuan: number;
+  total: number;
+  satuan: string;
+}
+
+interface SuratPesanan {
+  id: number;
+  nomor_surat: string;
+  tanggal_surat: string;
+  kode_kegiatan: string;
+  nama_kegiatan: string;
+  supplier_id: string;
+  nama_supplier: string;
+  status: 'draft' | 'sent' | 'approved' | 'delivered';
+  total_pesanan: number;
+  items: PesananItem[];
+  keterangan: string;
+}
+
+const mockPesanan: SuratPesanan[] = [
+  {
+    id: 1,
+    nomor_surat: "SP/001/2024",
+    tanggal_surat: "2024-01-20",
+    kode_kegiatan: "KEG001",
+    nama_kegiatan: "Pembangunan Jalan Desa",
+    supplier_id: "SUP001",
+    nama_supplier: "PT Maju Konstruksi",
+    status: "approved",
+    total_pesanan: 130000000,
+    keterangan: "Surat pesanan material untuk fase 1",
+    items: [
+      {
+        id: 1,
+        nama_item: "Semen Portland 50kg",
+        jumlah_rab: 1000,
+        jumlah_dipesan: 500,
+        sisa_kebutuhan: 500,
+        harga_satuan: 65000,
+        total: 32500000,
+        satuan: "sak"
+      },
+      {
+        id: 2,
+        nama_item: "Pasir Beton",
+        jumlah_rab: 500,
+        jumlah_dipesan: 200,
+        sisa_kebutuhan: 300,
+        harga_satuan: 150000,
+        total: 30000000,
+        satuan: "m3"
+      }
+    ]
+  },
+  {
+    id: 2,
+    nomor_surat: "SP/002/2024",
+    tanggal_surat: "2024-02-01",
+    kode_kegiatan: "KEG002",
+    nama_kegiatan: "Renovasi Balai Desa",
+    supplier_id: "SUP002",
+    nama_supplier: "CV Sumber Material",
+    status: "draft",
+    total_pesanan: 45000000,
+    keterangan: "Surat pesanan material renovasi",
+    items: []
+  }
+];
+
+const mockRABOptions = [
+  { kode: "KEG001", nama: "Pembangunan Jalan Desa" },
+  { kode: "KEG002", nama: "Renovasi Balai Desa" }
+];
+
+const mockSupplierOptions = [
+  { id: "SUP001", nama: "PT Maju Konstruksi" },
+  { id: "SUP002", nama: "CV Sumber Material" }
+];
+
+const statusColors = {
+  draft: "bg-yellow-100 text-yellow-800",
+  sent: "bg-blue-100 text-blue-800",
+  approved: "bg-green-100 text-green-800",
+  delivered: "bg-purple-100 text-purple-800"
+};
 
 export default function Pesanan() {
+  const [pesanan, setPesanan] = useState<SuratPesanan[]>(mockPesanan);
+  const [selectedPesanan, setSelectedPesanan] = useState<SuratPesanan | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isPesananDialogOpen, setIsPesananDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [editingPesanan, setEditingPesanan] = useState<SuratPesanan | null>(null);
+  const { toast } = useToast();
+
+  const [pesananForm, setPesananForm] = useState({
+    nomor_surat: "",
+    kode_kegiatan: "",
+    nama_kegiatan: "",
+    supplier_id: "",
+    nama_supplier: "",
+    keterangan: "",
+    status: "draft" as 'draft' | 'sent' | 'approved' | 'delivered'
+  });
+
+  const filteredPesanan = pesanan.filter(item =>
+    item.nomor_surat.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.nama_kegiatan.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.nama_supplier.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handlePesananSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (editingPesanan) {
+      setPesanan(prev => prev.map(item => 
+        item.id === editingPesanan.id 
+          ? { 
+              ...item, 
+              ...pesananForm,
+              total_pesanan: item.items.reduce((sum, pesananItem) => sum + pesananItem.total, 0)
+            }
+          : item
+      ));
+      toast({
+        title: "Surat Pesanan Diperbarui",
+        description: "Data surat pesanan berhasil diperbarui",
+      });
+    } else {
+      const newPesanan: SuratPesanan = {
+        ...pesananForm,
+        id: Math.max(...pesanan.map(p => p.id)) + 1,
+        tanggal_surat: new Date().toISOString().split('T')[0],
+        total_pesanan: 0,
+        items: []
+      };
+      setPesanan(prev => [...prev, newPesanan]);
+      toast({
+        title: "Surat Pesanan Dibuat",
+        description: "Surat pesanan baru berhasil dibuat",
+      });
+    }
+    
+    resetPesananForm();
+  };
+
+  const handleViewPesanan = (pesananData: SuratPesanan) => {
+    setSelectedPesanan(pesananData);
+    setIsViewDialogOpen(true);
+  };
+
+  const handleEditPesanan = (pesananData: SuratPesanan) => {
+    setEditingPesanan(pesananData);
+    setPesananForm({
+      nomor_surat: pesananData.nomor_surat,
+      kode_kegiatan: pesananData.kode_kegiatan,
+      nama_kegiatan: pesananData.nama_kegiatan,
+      supplier_id: pesananData.supplier_id,
+      nama_supplier: pesananData.nama_supplier,
+      keterangan: pesananData.keterangan,
+      status: pesananData.status
+    });
+    setIsPesananDialogOpen(true);
+  };
+
+  const handleDeletePesanan = (id: number) => {
+    setPesanan(prev => prev.filter(item => item.id !== id));
+    toast({
+      title: "Surat Pesanan Dihapus",
+      description: "Data surat pesanan berhasil dihapus",
+    });
+  };
+
+  const handleCetakPesanan = (pesananData: SuratPesanan) => {
+    toast({
+      title: "Mencetak Surat Pesanan",
+      description: `Mencetak surat pesanan ${pesananData.nomor_surat}`,
+    });
+    // Here you would implement PDF generation logic
+  };
+
+  const handleKegiatanChange = (kodeKegiatan: string) => {
+    const kegiatan = mockRABOptions.find(rab => rab.kode === kodeKegiatan);
+    setPesananForm(prev => ({
+      ...prev,
+      kode_kegiatan: kodeKegiatan,
+      nama_kegiatan: kegiatan?.nama || ""
+    }));
+  };
+
+  const handleSupplierChange = (supplierId: string) => {
+    const supplier = mockSupplierOptions.find(sup => sup.id === supplierId);
+    setPesananForm(prev => ({
+      ...prev,
+      supplier_id: supplierId,
+      nama_supplier: supplier?.nama || ""
+    }));
+  };
+
+  const resetPesananForm = () => {
+    setPesananForm({
+      nomor_surat: "",
+      kode_kegiatan: "",
+      nama_kegiatan: "",
+      supplier_id: "",
+      nama_supplier: "",
+      keterangan: "",
+      status: "draft"
+    });
+    setEditingPesanan(null);
+    setIsPesananDialogOpen(false);
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
+
+  const totalPesananActual = pesanan.reduce((sum, item) => sum + item.total_pesanan, 0);
+  const pesananStats = {
+    total: pesanan.length,
+    draft: pesanan.filter(p => p.status === 'draft').length,
+    sent: pesanan.filter(p => p.status === 'sent').length,
+    approved: pesanan.filter(p => p.status === 'approved').length,
+    delivered: pesanan.filter(p => p.status === 'delivered').length
+  };
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Surat Pesanan</h2>
@@ -12,74 +257,340 @@ export default function Pesanan() {
             Kelola surat pesanan berdasarkan RAB kegiatan
           </p>
         </div>
-        <Button className="gradient-primary">
-          <Plus className="h-4 w-4 mr-2" />
-          Buat Surat Pesanan
-        </Button>
+        <Dialog open={isPesananDialogOpen} onOpenChange={setIsPesananDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="gradient-primary" onClick={() => resetPesananForm()}>
+              <Plus className="h-4 w-4 mr-2" />
+              Buat Surat Pesanan
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
+                {editingPesanan ? "Edit Surat Pesanan" : "Buat Surat Pesanan Baru"}
+              </DialogTitle>
+              <DialogDescription>
+                Lengkapi informasi surat pesanan
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handlePesananSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nomor_surat">Nomor Surat</Label>
+                  <Input
+                    id="nomor_surat"
+                    value={pesananForm.nomor_surat}
+                    onChange={(e) => setPesananForm(prev => ({ ...prev, nomor_surat: e.target.value }))}
+                    placeholder="SP/001/2024"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status</Label>
+                  <Select value={pesananForm.status} onValueChange={(value: any) => setPesananForm(prev => ({ ...prev, status: value }))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="sent">Terkirim</SelectItem>
+                      <SelectItem value="approved">Disetujui</SelectItem>
+                      <SelectItem value="delivered">Diterima</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="kode_kegiatan">Kegiatan</Label>
+                <Select value={pesananForm.kode_kegiatan} onValueChange={handleKegiatanChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih kegiatan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mockRABOptions.map((rab) => (
+                      <SelectItem key={rab.kode} value={rab.kode}>
+                        {rab.kode} - {rab.nama}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="supplier_id">Supplier</Label>
+                <Select value={pesananForm.supplier_id} onValueChange={handleSupplierChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih supplier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mockSupplierOptions.map((supplier) => (
+                      <SelectItem key={supplier.id} value={supplier.id}>
+                        {supplier.nama}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="keterangan">Keterangan</Label>
+                <Textarea
+                  id="keterangan"
+                  value={pesananForm.keterangan}
+                  onChange={(e) => setPesananForm(prev => ({ ...prev, keterangan: e.target.value }))}
+                  placeholder="Catatan tambahan untuk surat pesanan"
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button type="button" variant="outline" onClick={resetPesananForm}>
+                  Batal
+                </Button>
+                <Button type="submit" className="gradient-primary">
+                  {editingPesanan ? "Perbarui" : "Simpan"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
-          <CardHeader>
-            <CardTitle>Total Pesanan</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">24</div>
-            <p className="text-sm text-muted-foreground">Surat pesanan</p>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <ShoppingCart className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{pesananStats.total}</p>
+                <p className="text-sm font-medium">Total Pesanan</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Bulan Ini</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">8</div>
-            <p className="text-sm text-muted-foreground">Pesanan baru</p>
+          <CardContent className="p-6">
+            <div>
+              <p className="text-2xl font-bold">{pesananStats.draft}</p>
+              <p className="text-sm font-medium">Draft</p>
+            </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Pending</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">3</div>
-            <p className="text-sm text-muted-foreground">Menunggu approval</p>
+          <CardContent className="p-6">
+            <div>
+              <p className="text-2xl font-bold">{pesananStats.approved}</p>
+              <p className="text-sm font-medium">Disetujui</p>
+            </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Selesai</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">21</div>
-            <p className="text-sm text-muted-foreground">Pesanan complete</p>
+          <CardContent className="p-6">
+            <div>
+              <p className="text-2xl font-bold">{pesananStats.delivered}</p>
+              <p className="text-sm font-medium">Selesai</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div>
+              <p className="text-lg font-bold">{formatCurrency(totalPesananActual)}</p>
+              <p className="text-sm font-medium">Total Nilai</p>
+            </div>
           </CardContent>
         </Card>
       </div>
 
+      {/* Search */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <ShoppingCart className="h-5 w-5" />
-            Daftar Surat Pesanan
+            <Search className="h-5 w-5" />
+            Pencarian Surat Pesanan
           </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Input
+            placeholder="Cari berdasarkan nomor surat, kegiatan, atau supplier..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Pesanan Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Daftar Surat Pesanan</CardTitle>
           <CardDescription>
-            Implementasi lengkap surat pesanan akan tersedia setelah integrasi backend
+            Total: {filteredPesanan.length} surat pesanan
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-12">
-            <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Purchase Order System</h3>
-            <p className="text-muted-foreground">
-              Sistem lengkap untuk membuat surat pesanan dari RAB, tracking status, dan generate PDF.
-            </p>
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nomor Surat</TableHead>
+                <TableHead>Tanggal</TableHead>
+                <TableHead>Kegiatan</TableHead>
+                <TableHead>Supplier</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Total Nilai</TableHead>
+                <TableHead>Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredPesanan.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell className="font-mono">{item.nomor_surat}</TableCell>
+                  <TableCell>{new Date(item.tanggal_surat).toLocaleDateString('id-ID')}</TableCell>
+                  <TableCell>
+                    <div>
+                      <p className="font-medium">{item.nama_kegiatan}</p>
+                      <p className="text-sm text-muted-foreground">{item.kode_kegiatan}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell>{item.nama_supplier}</TableCell>
+                  <TableCell>
+                    <Badge className={statusColors[item.status]}>
+                      {item.status.toUpperCase()}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {formatCurrency(item.total_pesanan)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewPesanan(item)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditPesanan(item)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleCetakPesanan(item)}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeletePesanan(item.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
+
+      {/* View Pesanan Detail Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-6xl max-h-[80vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Detail Surat Pesanan: {selectedPesanan?.nomor_surat}</DialogTitle>
+            <DialogDescription>
+              Kegiatan: {selectedPesanan?.nama_kegiatan} | Supplier: {selectedPesanan?.nama_supplier}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedPesanan && (
+            <div className="space-y-6">
+              {/* Pesanan Info */}
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label>Total Nilai Pesanan</Label>
+                  <p className="text-2xl font-bold text-primary">{formatCurrency(selectedPesanan.total_pesanan)}</p>
+                </div>
+                <div>
+                  <Label>Jumlah Item</Label>
+                  <p className="text-2xl font-bold">{selectedPesanan.items.length}</p>
+                </div>
+                <div>
+                  <Label>Status</Label>
+                      <Badge className={statusColors[selectedPesanan.status]}>
+                        {selectedPesanan.status.toUpperCase()}
+                      </Badge>
+                </div>
+              </div>
+
+              {/* Items Table */}
+              <div>
+                <h4 className="text-lg font-semibold mb-4">Item Pesanan</h4>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nama Item</TableHead>
+                      <TableHead>Jumlah RAB</TableHead>
+                      <TableHead>Jumlah Dipesan</TableHead>
+                      <TableHead>Sisa Kebutuhan</TableHead>
+                      <TableHead>Harga Satuan</TableHead>
+                      <TableHead>Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedPesanan.items.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">
+                          {item.nama_item}
+                          <div className="text-sm text-muted-foreground">({item.satuan})</div>
+                        </TableCell>
+                        <TableCell>{item.jumlah_rab}</TableCell>
+                        <TableCell className="font-medium text-primary">{item.jumlah_dipesan}</TableCell>
+                        <TableCell>{item.sisa_kebutuhan}</TableCell>
+                        <TableCell>{formatCurrency(item.harga_satuan)}</TableCell>
+                        <TableCell className="font-medium">{formatCurrency(item.total)}</TableCell>
+                      </TableRow>
+                    ))}
+                    {selectedPesanan.items.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                          Belum ada item pesanan.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-4 pt-4 border-t">
+                <Button className="gradient-primary" onClick={() => handleCetakPesanan(selectedPesanan)}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Cetak PDF
+                </Button>
+                <Button variant="outline" onClick={() => handleEditPesanan(selectedPesanan)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Pesanan
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
