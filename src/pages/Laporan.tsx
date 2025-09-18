@@ -7,8 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, FileText, Download, Calendar, Calculator, TrendingUp, AlertTriangle } from "lucide-react";
+import { BarChart3, FileText, Download, Calendar, Calculator, TrendingUp, AlertTriangle, Filter, FileSpreadsheet, BarChart2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 
 interface LaporanRAB {
   kode_kegiatan: string;
@@ -104,16 +105,32 @@ const mockSisaKebutuhan: SisaKebutuhan[] = [
 ];
 
 const urgencyColors = {
-  low: "bg-green-100 text-green-800",
-  medium: "bg-yellow-100 text-yellow-800",
-  high: "bg-red-100 text-red-800"
+  low: "bg-success/20 text-success-foreground",
+  medium: "bg-warning/20 text-warning-foreground",
+  high: "bg-destructive/20 text-destructive-foreground"
 };
 
 const statusColors = {
-  draft: "bg-yellow-100 text-yellow-800",
-  active: "bg-green-100 text-green-800",
-  approved: "bg-blue-100 text-blue-800"
+  draft: "bg-warning/20 text-warning-foreground",
+  active: "bg-success/20 text-success-foreground",
+  approved: "bg-primary/20 text-primary-foreground"
 };
+
+// Additional data for enhanced reporting
+const monthlyTrendData = [
+  { month: 'Jan', totalRAB: 450000000, realisasi: 120000000, efficiency: 27 },
+  { month: 'Feb', totalRAB: 650000000, realisasi: 180000000, efficiency: 28 },
+  { month: 'Mar', totalRAB: 500000000, realisasi: 200000000, efficiency: 40 },
+  { month: 'Apr', totalRAB: 750000000, realisasi: 250000000, efficiency: 33 },
+  { month: 'Mei', totalRAB: 600000000, realisasi: 180000000, efficiency: 30 },
+  { month: 'Jun', totalRAB: 800000000, realisasi: 320000000, efficiency: 40 },
+];
+
+const supplierPerformance = [
+  { supplier: 'PT Maju Konstruksi', orders: 15, totalValue: 450000000, onTime: 87, rating: 4.5 },
+  { supplier: 'CV Sumber Material', orders: 12, totalValue: 320000000, onTime: 92, rating: 4.7 },
+  { supplier: 'UD Berkah Jaya', orders: 8, totalValue: 180000000, onTime: 75, rating: 4.2 },
+];
 
 export default function Laporan() {
   const [filterPeriode, setFilterPeriode] = useState("semua");
@@ -145,15 +162,29 @@ export default function Laporan() {
     }, 2000);
   };
 
+  const handleExportData = (format: 'csv' | 'excel') => {
+    toast({
+      title: "Mengeksport Data",
+      description: `Sedang memproses export ${format.toUpperCase()}...`,
+    });
+    
+    setTimeout(() => {
+      toast({
+        title: "Export Berhasil",
+        description: `Data berhasil diexport ke format ${format.toUpperCase()}`,
+      });
+    }, 1500);
+  };
+
   const totalRAB = mockLaporanRAB.reduce((sum, item) => sum + item.total_rab, 0);
   const totalRealisasi = mockLaporanRAB.reduce((sum, item) => sum + item.total_dipesan, 0);
   const totalSisaAnggaran = mockLaporanRAB.reduce((sum, item) => sum + item.sisa_anggaran, 0);
   const avgRealisasi = mockLaporanRAB.reduce((sum, item) => sum + item.persentase_realisasi, 0) / mockLaporanRAB.length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div>
+      <div className="animate-slide-up">
         <h2 className="text-3xl font-bold tracking-tight">Laporan & Cetak</h2>
         <p className="text-muted-foreground">
           Generate laporan dan analisis data sistem
@@ -162,10 +193,10 @@ export default function Laporan() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+        <Card className="hover-lift animate-scale-in">
           <CardContent className="p-6">
             <div className="flex items-center space-x-4">
-              <div className="p-2 rounded-lg bg-primary/10">
+              <div className="p-3 rounded-xl bg-primary/10 hover-scale">
                 <Calculator className="h-6 w-6 text-primary" />
               </div>
               <div>
@@ -176,11 +207,11 @@ export default function Laporan() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover-lift animate-scale-in" style={{ animationDelay: '0.1s' }}>
           <CardContent className="p-6">
             <div className="flex items-center space-x-4">
-              <div className="p-2 rounded-lg bg-green-100">
-                <TrendingUp className="h-6 w-6 text-green-600" />
+              <div className="p-3 rounded-xl bg-success/10 hover-scale">
+                <TrendingUp className="h-6 w-6 text-success" />
               </div>
               <div>
                 <p className="text-lg font-bold">{formatCurrency(totalRealisasi)}</p>
@@ -190,11 +221,11 @@ export default function Laporan() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover-lift animate-scale-in" style={{ animationDelay: '0.2s' }}>
           <CardContent className="p-6">
             <div className="flex items-center space-x-4">
-              <div className="p-2 rounded-lg bg-yellow-100">
-                <AlertTriangle className="h-6 w-6 text-yellow-600" />
+              <div className="p-3 rounded-xl bg-warning/10 hover-scale">
+                <AlertTriangle className="h-6 w-6 text-warning" />
               </div>
               <div>
                 <p className="text-lg font-bold">{formatCurrency(totalSisaAnggaran)}</p>
@@ -204,7 +235,7 @@ export default function Laporan() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover-lift animate-scale-in" style={{ animationDelay: '0.3s' }}>
           <CardContent className="p-6">
             <div>
               <p className="text-2xl font-bold">{avgRealisasi.toFixed(1)}%</p>
@@ -214,10 +245,182 @@ export default function Laporan() {
         </Card>
       </div>
 
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Monthly Trend Chart */}
+        <Card className="animate-slide-in-right hover-lift">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart2 className="h-5 w-5 text-primary" />
+              Trend Bulanan
+            </CardTitle>
+            <CardDescription>
+              Analisis trend RAB dan realisasi bulanan
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={monthlyTrendData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis tickFormatter={(value) => `${value / 1000000}M`} />
+                <Tooltip 
+                  formatter={(value: number) => [formatCurrency(value), '']}
+                  labelFormatter={(label) => `Bulan ${label}`}
+                />
+                <Bar dataKey="totalRAB" fill="hsl(var(--chart-1))" name="Total RAB" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="realisasi" fill="hsl(var(--chart-2))" name="Realisasi" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Efficiency Trend */}
+        <Card className="animate-slide-in-right hover-lift" style={{ animationDelay: '0.2s' }}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-success" />
+              Analisis Efisiensi
+            </CardTitle>
+            <CardDescription>
+              Trend efisiensi penggunaan anggaran
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={monthlyTrendData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis domain={[0, 50]} tickFormatter={(value) => `${value}%`} />
+                <Tooltip formatter={(value: number) => [`${value}%`, 'Efisiensi']} />
+                <Line 
+                  type="monotone" 
+                  dataKey="efficiency" 
+                  stroke="hsl(var(--chart-2))" 
+                  strokeWidth={3}
+                  dot={{ fill: 'hsl(var(--chart-2))', strokeWidth: 2, r: 4 }}
+                  activeDot={{ r: 6, stroke: 'hsl(var(--chart-2))', strokeWidth: 2 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Advanced Features */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Monthly Report Generator */}
+        <Card className="animate-slide-up hover-lift">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              Laporan Bulanan
+            </CardTitle>
+            <CardDescription>
+              Generate laporan periode bulanan
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Pilih Bulan</Label>
+              <Select defaultValue="juni-2024">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="januari-2024">Januari 2024</SelectItem>
+                  <SelectItem value="februari-2024">Februari 2024</SelectItem>
+                  <SelectItem value="maret-2024">Maret 2024</SelectItem>
+                  <SelectItem value="april-2024">April 2024</SelectItem>
+                  <SelectItem value="mei-2024">Mei 2024</SelectItem>
+                  <SelectItem value="juni-2024">Juni 2024</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button 
+              onClick={() => handleGenerateReport("Bulanan")} 
+              className="w-full hover-scale"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Generate Laporan
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Data Export */}
+        <Card className="animate-slide-up hover-lift" style={{ animationDelay: '0.1s' }}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5 text-success" />
+              Export Data
+            </CardTitle>
+            <CardDescription>
+              Export data ke berbagai format
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Button 
+                variant="outline" 
+                onClick={() => handleExportData('csv')}
+                className="w-full hover-scale"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => handleExportData('excel')}
+                className="w-full hover-scale"
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Export Excel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Trend Analysis */}
+        <Card className="animate-slide-up hover-lift" style={{ animationDelay: '0.2s' }}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-warning" />
+              Analisis Trend
+            </CardTitle>
+            <CardDescription>
+              Insight dan prediksi trend
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Trend Positif</span>
+                <Badge className="bg-success/20 text-success-foreground">+12%</Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Efisiensi Q2</span>
+                <Badge className="bg-primary/20 text-primary-foreground">Baik</Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Prediksi Q3</span>
+                <Badge className="bg-warning/20 text-warning-foreground">Stabil</Badge>
+              </div>
+            </div>
+            <Button variant="outline" className="w-full hover-scale">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Lihat Detail
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Filter Section */}
-      <Card>
+      <Card className="animate-slide-up hover-lift" style={{ animationDelay: '0.4s' }}>
         <CardHeader>
-          <CardTitle>Filter Laporan</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filter Laporan
+          </CardTitle>
           <CardDescription>
             Pilih periode dan kegiatan untuk laporan yang lebih spesifik
           </CardDescription>
@@ -227,7 +430,7 @@ export default function Laporan() {
             <div className="space-y-2">
               <Label>Periode</Label>
               <Select value={filterPeriode} onValueChange={setFilterPeriode}>
-                <SelectTrigger>
+                <SelectTrigger className="hover-scale">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -242,7 +445,7 @@ export default function Laporan() {
             <div className="space-y-2">
               <Label>Kegiatan</Label>
               <Select value={filterKegiatan} onValueChange={setFilterKegiatan}>
-                <SelectTrigger>
+                <SelectTrigger className="hover-scale">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -261,6 +464,7 @@ export default function Laporan() {
                     type="date"
                     value={tanggalMulai}
                     onChange={(e) => setTanggalMulai(e.target.value)}
+                    className="hover-scale"
                   />
                 </div>
                 <div className="space-y-2">
@@ -269,6 +473,7 @@ export default function Laporan() {
                     type="date"
                     value={tanggalSelesai}
                     onChange={(e) => setTanggalSelesai(e.target.value)}
+                    className="hover-scale"
                   />
                 </div>
               </>
@@ -278,16 +483,17 @@ export default function Laporan() {
       </Card>
 
       {/* Tabs for Different Reports */}
-      <Tabs defaultValue="rab" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="rab">Laporan RAB</TabsTrigger>
-          <TabsTrigger value="realisasi">Realisasi Pesanan</TabsTrigger>
-          <TabsTrigger value="sisa">Sisa Kebutuhan</TabsTrigger>
+      <Tabs defaultValue="rab" className="space-y-4 animate-slide-up" style={{ animationDelay: '0.6s' }}>
+        <TabsList className="hover-scale">
+          <TabsTrigger value="rab" className="transition-smooth">Laporan RAB</TabsTrigger>
+          <TabsTrigger value="realisasi" className="transition-smooth">Realisasi Pesanan</TabsTrigger>
+          <TabsTrigger value="sisa" className="transition-smooth">Sisa Kebutuhan</TabsTrigger>
+          <TabsTrigger value="supplier" className="transition-smooth">Performa Supplier</TabsTrigger>
         </TabsList>
 
         {/* RAB Report Tab */}
         <TabsContent value="rab" className="space-y-4">
-          <Card>
+          <Card className="hover-lift">
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
@@ -299,7 +505,7 @@ export default function Laporan() {
                     Ringkasan anggaran dan realisasi per kegiatan
                   </CardDescription>
                 </div>
-                <Button onClick={() => handleGenerateReport("RAB")}>
+                <Button onClick={() => handleGenerateReport("RAB")} className="hover-scale">
                   <Download className="h-4 w-4 mr-2" />
                   Download PDF
                 </Button>
@@ -319,8 +525,8 @@ export default function Laporan() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {mockLaporanRAB.map((item) => (
-                    <TableRow key={item.kode_kegiatan}>
+                  {mockLaporanRAB.map((item, index) => (
+                    <TableRow key={item.kode_kegiatan} className="hover-glow animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
                       <TableCell className="font-mono">{item.kode_kegiatan}</TableCell>
                       <TableCell className="font-medium">{item.nama_kegiatan}</TableCell>
                       <TableCell>{formatCurrency(item.total_rab)}</TableCell>
@@ -328,9 +534,9 @@ export default function Laporan() {
                       <TableCell>{formatCurrency(item.sisa_anggaran)}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-gray-200 rounded-full h-2">
+                          <div className="flex-1 bg-muted rounded-full h-2">
                             <div 
-                              className="bg-primary rounded-full h-2"
+                              className="bg-primary rounded-full h-2 transition-all duration-1000"
                               style={{ width: `${item.persentase_realisasi}%` }}
                             />
                           </div>
