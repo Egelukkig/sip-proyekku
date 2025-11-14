@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Users, UserPlus, ClipboardCheck, Edit, Trash2, CalendarIcon, CheckCircle, XCircle } from "lucide-react";
+import { Users, UserPlus, ClipboardCheck, Edit, Trash2, CalendarIcon, CheckCircle, XCircle, Upload, Building2 } from "lucide-react";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { toast } from "sonner";
@@ -22,6 +22,8 @@ interface Worker {
   phone: string;
   joinDate: Date;
   status: "active" | "inactive";
+  projectId: string;
+  ktpPhoto?: string;
 }
 
 interface Attendance {
@@ -32,7 +34,21 @@ interface Attendance {
   notes?: string;
 }
 
+interface Project {
+  id: string;
+  name: string;
+}
+
 export default function Pekerja() {
+  const [projects] = useState<Project[]>([
+    { id: "all", name: "Semua Proyek" },
+    { id: "1", name: "Pembangunan Gedung A" },
+    { id: "2", name: "Renovasi Kantor B" },
+    { id: "3", name: "Proyek Perumahan C" }
+  ]);
+
+  const [selectedProject, setSelectedProject] = useState<string>("all");
+
   const [workers, setWorkers] = useState<Worker[]>([
     {
       id: "1",
@@ -40,7 +56,8 @@ export default function Pekerja() {
       position: "Kepala Tukang",
       phone: "081234567890",
       joinDate: new Date(2024, 0, 15),
-      status: "active"
+      status: "active",
+      projectId: "1"
     },
     {
       id: "2",
@@ -48,7 +65,8 @@ export default function Pekerja() {
       position: "Tukang Bangunan",
       phone: "081234567891",
       joinDate: new Date(2024, 1, 1),
-      status: "active"
+      status: "active",
+      projectId: "1"
     }
   ]);
 
@@ -77,12 +95,14 @@ export default function Pekerja() {
     name: "",
     position: "",
     phone: "",
-    status: "active" as "active" | "inactive"
+    status: "active" as "active" | "inactive",
+    projectId: "",
+    ktpPhoto: ""
   });
 
   const handleAddWorker = () => {
-    if (!workerForm.name || !workerForm.position) {
-      toast.error("Nama dan posisi harus diisi");
+    if (!workerForm.name || !workerForm.position || !workerForm.projectId) {
+      toast.error("Nama, posisi, dan proyek harus diisi");
       return;
     }
 
@@ -93,14 +113,14 @@ export default function Pekerja() {
     };
 
     setWorkers([...workers, newWorker]);
-    setWorkerForm({ name: "", position: "", phone: "", status: "active" });
+    setWorkerForm({ name: "", position: "", phone: "", status: "active", projectId: "", ktpPhoto: "" });
     setIsAddWorkerOpen(false);
     toast.success("Pekerja berhasil ditambahkan");
   };
 
   const handleEditWorker = () => {
-    if (!editingWorker || !workerForm.name || !workerForm.position) {
-      toast.error("Nama dan posisi harus diisi");
+    if (!editingWorker || !workerForm.name || !workerForm.position || !workerForm.projectId) {
+      toast.error("Nama, posisi, dan proyek harus diisi");
       return;
     }
 
@@ -110,7 +130,7 @@ export default function Pekerja() {
         : w
     ));
     setEditingWorker(null);
-    setWorkerForm({ name: "", position: "", phone: "", status: "active" });
+    setWorkerForm({ name: "", position: "", phone: "", status: "active", projectId: "", ktpPhoto: "" });
     toast.success("Data pekerja berhasil diperbarui");
   };
 
@@ -126,9 +146,30 @@ export default function Pekerja() {
       name: worker.name,
       position: worker.position,
       phone: worker.phone,
-      status: worker.status
+      status: worker.status,
+      projectId: worker.projectId,
+      ktpPhoto: worker.ktpPhoto || ""
     });
   };
+
+  const handleKtpPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Ukuran file maksimal 5MB");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setWorkerForm({ ...workerForm, ktpPhoto: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const filteredWorkers = selectedProject === "all" 
+    ? workers 
+    : workers.filter(w => w.projectId === selectedProject);
 
   const handleAttendance = (workerId: string, status: "hadir" | "izin" | "sakit" | "alpha") => {
     const existingAttendance = attendances.find(
@@ -163,16 +204,23 @@ export default function Pekerja() {
   };
 
   const getAttendanceStats = () => {
-    const todayAttendances = attendances.filter(
-      a => format(a.date, "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd")
-    );
+    const relevantWorkers = selectedProject === "all" 
+      ? workers 
+      : workers.filter(w => w.projectId === selectedProject);
+    
+    const todayAttendances = attendances.filter(a => {
+      const worker = workers.find(w => w.id === a.workerId);
+      const isDateMatch = format(a.date, "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd");
+      const isProjectMatch = selectedProject === "all" || worker?.projectId === selectedProject;
+      return isDateMatch && isProjectMatch;
+    });
     
     return {
       hadir: todayAttendances.filter(a => a.status === "hadir").length,
       izin: todayAttendances.filter(a => a.status === "izin").length,
       sakit: todayAttendances.filter(a => a.status === "sakit").length,
       alpha: todayAttendances.filter(a => a.status === "alpha").length,
-      total: workers.filter(w => w.status === "active").length
+      total: relevantWorkers.filter(w => w.status === "active").length
     };
   };
 
@@ -186,6 +234,30 @@ export default function Pekerja() {
           Kelola data pekerja dan absensi harian
         </p>
       </div>
+
+      {/* Project Selector */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-4">
+            <Building2 className="h-5 w-5 text-muted-foreground" />
+            <div className="flex-1 space-y-2">
+              <Label>Pilih Proyek</Label>
+              <Select value={selectedProject} onValueChange={setSelectedProject}>
+                <SelectTrigger className="w-full md:w-[300px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="workers" className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-2">
@@ -209,7 +281,7 @@ export default function Pekerja() {
                     Daftar Pekerja
                   </CardTitle>
                   <CardDescription>
-                    Total {workers.length} pekerja ({workers.filter(w => w.status === "active").length} aktif)
+                    Total {filteredWorkers.length} pekerja ({filteredWorkers.filter(w => w.status === "active").length} aktif)
                   </CardDescription>
                 </div>
                 <Dialog open={isAddWorkerOpen} onOpenChange={setIsAddWorkerOpen}>
@@ -255,6 +327,53 @@ export default function Pekerja() {
                         />
                       </div>
                       <div className="space-y-2">
+                        <Label htmlFor="project">Proyek *</Label>
+                        <Select
+                          value={workerForm.projectId}
+                          onValueChange={(value) => 
+                            setWorkerForm({ ...workerForm, projectId: value })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Pilih proyek" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {projects.filter(p => p.id !== "all").map((project) => (
+                              <SelectItem key={project.id} value={project.id}>
+                                {project.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="ktp">Foto KTP</Label>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Input
+                              id="ktp"
+                              type="file"
+                              accept="image/*"
+                              onChange={handleKtpPhotoUpload}
+                              className="cursor-pointer"
+                            />
+                            <Upload className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          {workerForm.ktpPhoto && (
+                            <div className="relative w-full h-32 border rounded-md overflow-hidden">
+                              <img 
+                                src={workerForm.ktpPhoto} 
+                                alt="Preview KTP" 
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            Format: JPG, PNG. Maksimal 5MB
+                          </p>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
                         <Label htmlFor="status">Status</Label>
                         <Select
                           value={workerForm.status}
@@ -296,7 +415,7 @@ export default function Pekerja() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {workers.map((worker) => (
+                    {filteredWorkers.map((worker) => (
                       <TableRow key={worker.id} className="hover-scale">
                         <TableCell className="font-medium">{worker.name}</TableCell>
                         <TableCell>{worker.position}</TableCell>
@@ -355,6 +474,53 @@ export default function Pekerja() {
                                       value={workerForm.phone}
                                       onChange={(e) => setWorkerForm({ ...workerForm, phone: e.target.value })}
                                     />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="edit-project">Proyek *</Label>
+                                    <Select
+                                      value={workerForm.projectId}
+                                      onValueChange={(value) => 
+                                        setWorkerForm({ ...workerForm, projectId: value })
+                                      }
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Pilih proyek" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {projects.filter(p => p.id !== "all").map((project) => (
+                                          <SelectItem key={project.id} value={project.id}>
+                                            {project.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="edit-ktp">Foto KTP</Label>
+                                    <div className="space-y-2">
+                                      <div className="flex items-center gap-2">
+                                        <Input
+                                          id="edit-ktp"
+                                          type="file"
+                                          accept="image/*"
+                                          onChange={handleKtpPhotoUpload}
+                                          className="cursor-pointer"
+                                        />
+                                        <Upload className="h-4 w-4 text-muted-foreground" />
+                                      </div>
+                                      {workerForm.ktpPhoto && (
+                                        <div className="relative w-full h-32 border rounded-md overflow-hidden">
+                                          <img 
+                                            src={workerForm.ktpPhoto} 
+                                            alt="Preview KTP" 
+                                            className="w-full h-full object-cover"
+                                          />
+                                        </div>
+                                      )}
+                                      <p className="text-xs text-muted-foreground">
+                                        Format: JPG, PNG. Maksimal 5MB
+                                      </p>
+                                    </div>
                                   </div>
                                   <div className="space-y-2">
                                     <Label htmlFor="edit-status">Status</Label>
@@ -488,7 +654,7 @@ export default function Pekerja() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {workers.filter(w => w.status === "active").map((worker) => {
+                    {filteredWorkers.filter(w => w.status === "active").map((worker) => {
                       const attendance = getAttendanceStatus(worker.id);
                       return (
                         <TableRow key={worker.id} className="hover-scale">
