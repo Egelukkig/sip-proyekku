@@ -12,6 +12,7 @@ import Supplier from "./pages/master/Supplier";
 import Users from "./pages/master/Users";
 import RAB from "./pages/RAB";
 import Pesanan from "./pages/Pesanan";
+import Pekerja from "./pages/Pekerja";
 import Laporan from "./pages/Laporan";
 import Pengaturan from "./pages/Pengaturan";
 
@@ -58,6 +59,7 @@ const App = () => {
               <Route path="/master/users" element={<Users />} />
               <Route path="/rab" element={<RAB />} />
               <Route path="/pesanan" element={<Pesanan />} />
+              <Route path="/pekerja" element={<Pekerja />} />
               <Route path="/laporan" element={<Laporan />} />
               <Route path="/pengaturan" element={<Pengaturan />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
