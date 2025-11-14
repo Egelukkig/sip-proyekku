@@ -20,6 +20,7 @@ import {
   Users,
   Building2,
   Calculator,
+  HardHat,
   LogOut
 } from "lucide-react";
 
@@ -59,6 +60,11 @@ const operationalItems = [
     title: "Surat Pesanan",
     url: "/pesanan",
     icon: ShoppingCart,
+  },
+  {
+    title: "Pekerja",
+    url: "/pekerja",
+    icon: HardHat,
   },
   {
     title: "Laporan & Cetak",
